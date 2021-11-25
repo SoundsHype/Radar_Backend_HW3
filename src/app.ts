@@ -3,49 +3,107 @@ import express from 'express'
 const app = express();
 app.use(express.text());
 
-function calcint (formula: String): Number {
-	var ab = formula.split(/([()])/);
-	var temp = ab[Math.trunc(ab.length/2)];
-	if (formula.indexOf('+') != -1){
-		ab = temp.split('+')
-		return (+ab[0]) + (+ab[1]);
-	}
-	if (formula.indexOf('/') != -1){
-		ab = temp.split('/')
-		return (+ab[0]) / (+ab[1]);
-	}
-	if (formula.indexOf('*') != -1){
-		ab = temp.split('*')
-		return (+ab[0]) * (+ab[1]);
-	}
-	if (formula.indexOf('-') != -1){
-		ab = temp.split('-')
-		if (ab[0] = '')
-			return +ab[1] * -1;
-		else
-			return (+ab[0]) - (+ab[1]);
-	}
-}
+class Calc {
 
-function calc (formula: String): String {
-	var temp1, temp2;
-	formula.split(/([()])/);
-	while (formula.indexOf("(") != -1){
-		formula = formula.replace(/\s/g, "");
-		temp1 = formula.slice(0, formula.lastIndexOf("("));
-		temp2 = formula.slice(formula.indexOf(")")+1);
-		formula = temp1 + calcint(formula.substring(formula.lastIndexOf("(") + 1, formula.indexOf(")"))).toString() + temp2;
-		console.log(formula);
-	}
-	if (formula.indexOf('+') != -1 || formula.indexOf('-') != -1 || formula.indexOf('/') != -1 || formula.indexOf('*') != -1)
-		formula = calcint(formula).toString();
-	return formula;
-}
+	formula: string[];
 
-app.get("/", (req, res) => {
-	return res.send(calc(req.body).toString());
-});
+	constructor(getFormula: string){
+		getFormula = getFormula.replace(/\s/g, "");
+		this.formula = getFormula.split(/([/+()*-])/);
+		while (this.formula.indexOf("") != -1)
+			this.formula.splice(this.formula.indexOf(""), 1);
+	}
+
+	priority(term: string): number{
+		if (term == "+" || term == "-")
+			return 1;
+		if (term == "*" || term == "/")
+			return 2;
+		return 0;
+	}
+
+	middleCalc(a, b: number, term: string): number{
+		let ab: number;
+		switch(term) {
+			case "+":
+				ab = +a + +b;
+			break;
+			case "-":
+				ab = +a - +b;
+			break;
+			case "*":
+				ab = +a * +b;
+			break;
+			case "/":
+				ab = +a / +b;
+			break;
+		}
+		return ab;
+	}
+
+	maths(): number{
+		let nums: number[] = [];
+		let terms: string[] = [];
+		let unMin: boolean = true;
+		let anyTerms: string[] = ["+", "-", "*", "/", "(", ")"];
+
+		this.formula.forEach((elem) => {
+			if (anyTerms.indexOf(elem) == -1){
+				nums.push(elem);
+				unMin = false;
+				return;
+			}
+
+			if (elem == "("){
+				unMin = true;
+				terms.push(elem);
+				return;
+			}
+
+			if (elem == ")"){
+				while (terms[terms.length-1] != "("){
+				 	let a, b: number;
+				 	b = nums.pop();
+				 	a = nums.pop();  
+					nums.push(this.middleCalc(a, b, terms.pop()));
+				}
+				terms.pop();
+				return;
+			}
+
+			if (terms.length != 0 && this.priority(elem) <= this.priority(terms[terms.length-1])){
+				while (terms.length != 0){
+					if (terms[terms.length-1] == "(")
+						break;
+				 	let a, b: number;
+				 	b = nums.pop();
+				 	a = nums.pop();  
+					nums.push(this.middleCalc(a, b, terms.pop()));
+				}
+			}
+			
+			if (unMin)
+				nums.push(0);
+			terms.push(elem);
+		});
+
+		while (terms.length != 0){
+		 	let a, b: number;
+		 	b = nums.pop();
+		 	a = nums.pop();  
+			nums.push(this.middleCalc(a, b, terms.pop()));
+		}
+		return nums.pop();
+	}
+
+	print(){
+		console.log(this.formula);
+	}
+
+}
 
 app.listen(3000, () => {
-	console.log("Port: 3000");
+	let calc = new Calc("(-(-3)) +  (7-5/(2+3))*(7-2)");
+	calc.print();
+	console.log(calc.maths());
 });
